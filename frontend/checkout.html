@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout — LUXE STORE</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="index.html" class="nav-brand">LUXE<span>STORE</span></a>
+  <div class="nav-links">
+    <a href="cart.html" class="nav-link">← Back to Cart</a>
+    <div id="nav-auth" class="flex gap-1 items-center"></div>
+  </div>
+</nav>
+
+<main class="container">
+  <div class="page-header">
+    <h1>Checkout</h1>
+    <p>Enter your shipping details to place your order.</p>
+  </div>
+
+  <div id="loading" class="loading-state"><div class="spinner"></div></div>
+
+  <div id="checkout-content" class="checkout-layout hidden">
+
+    <!-- Left: shipping form -->
+    <div class="form-card">
+      <h2>📦 Shipping Information</h2>
+
+      <div class="form-group">
+        <label for="shipping-name">Full Name</label>
+        <input type="text" id="shipping-name" class="form-input" placeholder="John Doe" required />
+        <span class="form-error hidden" id="err-name">Please enter your full name.</span>
+      </div>
+
+      <div class="form-group">
+        <label for="shipping-address">Street Address</label>
+        <input type="text" id="shipping-address" class="form-input" placeholder="123 Main Street, Apt 4B" required />
+        <span class="form-error hidden" id="err-address">Please enter your address.</span>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="shipping-city">City</label>
+          <input type="text" id="shipping-city" class="form-input" placeholder="New York" required />
+          <span class="form-error hidden" id="err-city">Please enter your city.</span>
+        </div>
+        <div class="form-group">
+          <label for="shipping-zip">ZIP / Postal Code</label>
+          <input type="text" id="shipping-zip" class="form-input" placeholder="10001" required />
+          <span class="form-error hidden" id="err-zip">Please enter a valid ZIP.</span>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div style="border-top:1px solid var(--border);margin:1.5rem 0;"></div>
+      <h2>💳 Payment</h2>
+      <p class="text-grey text-sm" style="margin-bottom:1rem;">
+        This is a demo — no real payment is processed. Click "Place Order" to simulate checkout.
+      </p>
+
+      <div class="form-group">
+        <label>Card Number</label>
+        <input type="text" class="form-input" value="4242 4242 4242 4242" readonly
+               style="opacity:0.5;cursor:not-allowed;" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Expiry</label>
+          <input type="text" class="form-input" value="12/26" readonly style="opacity:0.5;cursor:not-allowed;" />
+        </div>
+        <div class="form-group">
+          <label>CVV</label>
+          <input type="text" class="form-input" value="***" readonly style="opacity:0.5;cursor:not-allowed;" />
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-full btn-lg" id="place-order-btn">
+        🎉 Place Order
+      </button>
+    </div>
+
+    <!-- Right: order summary -->
+    <aside>
+      <div class="order-summary" style="margin-bottom:1.5rem;">
+        <h3>Your Items</h3>
+        <div id="checkout-items" style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1rem;">
+          <div class="spinner"></div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:1rem;">
+          <div class="summary-row">
+            <span class="label">Subtotal</span>
+            <span id="co-subtotal">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="label">Shipping</span>
+            <span id="co-shipping">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="label">Tax (10%)</span>
+            <span id="co-tax">—</span>
+          </div>
+          <div class="summary-row total">
+            <span class="label">Total</span>
+            <span class="value" id="co-total">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;font-size:0.8rem;color:var(--grey);">
+        🔒 Your information is secured with SSL encryption.<br/><br/>
+        ↩️ Free 30-day returns on all orders.<br/><br/>
+        🚚 Estimated delivery: 3-5 business days.
+      </div>
+    </aside>
+  </div>
+
+  <!-- Success screen -->
+  <div id="order-success" class="empty-state hidden">
+    <div class="empty-icon">🎉</div>
+    <h2>Order Placed Successfully!</h2>
+    <p>Thank you for your purchase. Your order ID is <strong id="order-id-display" class="text-gold"></strong>.</p>
+    <div style="display:flex;gap:1rem;justify-content:center;margin-top:1.5rem;flex-wrap:wrap;">
+      <a href="orders.html" class="btn btn-primary">View My Orders</a>
+      <a href="index.html" class="btn btn-ghost">Continue Shopping</a>
+    </div>
+  </div>
+</main>
+
+<footer class="footer"><p>© 2025 <strong>LUXE STORE</strong></p></footer>
+
+<script src="js/api.js"></script>
+<script>
+  if (!requireAuth()) {}
+
+  async function loadCheckoutSummary() {
+    try {
+      const data = await cartAPI.get();
+
+      if (!data.items.length) {
+        window.location.href = 'cart.html';
+        return;
+      }
+
+      const subtotal = data.total;
+      const shipping = subtotal >= 50 ? 0 : 4.99;
+      const tax      = subtotal * 0.10;
+      const total    = subtotal + shipping + tax;
+
+      document.getElementById('checkout-items').innerHTML = data.items.map(i => `
+        <div style="display:flex;align-items:center;gap:0.75rem;font-size:0.85rem;">
+          <img src="${i.image_url || ''}" alt="${i.name}"
+               style="width:48px;height:48px;border-radius:6px;object-fit:cover;background:var(--bg3);" />
+          <div style="flex:1;min-width:0;">
+            <p style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${i.name}</p>
+            <p style="color:var(--grey);">Qty: ${i.quantity}</p>
+          </div>
+          <span style="color:var(--gold);font-weight:600;">${formatPrice(i.price * i.quantity)}</span>
+        </div>
+      `).join('');
+
+      document.getElementById('co-subtotal').textContent = formatPrice(subtotal);
+      document.getElementById('co-shipping').textContent = shipping === 0 ? 'FREE 🎉' : formatPrice(shipping);
+      document.getElementById('co-tax').textContent      = formatPrice(tax);
+      document.getElementById('co-total').textContent    = formatPrice(total);
+
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('checkout-content').classList.remove('hidden');
+    } catch (err) {
+      showToast('Failed to load cart: ' + err.message, 'error');
+    }
+  }
+
+  document.getElementById('place-order-btn').addEventListener('click', async () => {
+    // Validate
+    const name    = document.getElementById('shipping-name').value.trim();
+    const address = document.getElementById('shipping-address').value.trim();
+    const city    = document.getElementById('shipping-city').value.trim();
+    const zip     = document.getElementById('shipping-zip').value.trim();
+
+    let valid = true;
+    const show = (id, show) => document.getElementById(id).classList.toggle('hidden', !show);
+
+    if (!name)    { show('err-name', true);    valid = false; } else show('err-name', false);
+    if (!address) { show('err-address', true); valid = false; } else show('err-address', false);
+    if (!city)    { show('err-city', true);    valid = false; } else show('err-city', false);
+    if (!zip)     { show('err-zip', true);     valid = false; } else show('err-zip', false);
+
+    if (!valid) return;
+
+    const btn = document.getElementById('place-order-btn');
+    btn.disabled = true;
+    btn.textContent = 'Placing order…';
+
+    try {
+      const res = await orderAPI.place({
+        shipping_name:    name,
+        shipping_address: address,
+        shipping_city:    city,
+        shipping_zip:     zip,
+      });
+
+      document.getElementById('checkout-content').classList.add('hidden');
+      document.getElementById('order-success').classList.remove('hidden');
+      document.getElementById('order-id-display').textContent = `#${res.orderId}`;
+      updateCartBadge();
+    } catch (err) {
+      showToast(err.message, 'error');
+      btn.disabled = false;
+      btn.textContent = '🎉 Place Order';
+    }
+  });
+
+  loadCheckoutSummary();
+</script>
+</body>
+</html>

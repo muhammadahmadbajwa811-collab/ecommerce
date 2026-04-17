@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cart — LUXE STORE</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="index.html" class="nav-brand">LUXE<span>STORE</span></a>
+  <div class="nav-links">
+    <a href="index.html" class="nav-link">← Continue Shopping</a>
+    <a href="orders.html" class="nav-link">Orders</a>
+    <div id="nav-auth" class="flex gap-1 items-center"></div>
+  </div>
+</nav>
+
+<main class="container">
+  <div class="page-header">
+    <h1>Shopping Cart</h1>
+    <p id="cart-subtitle"></p>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" class="loading-state"><div class="spinner"></div></div>
+
+  <!-- Empty state -->
+  <div id="empty-cart" class="empty-state hidden">
+    <div class="empty-icon">🛒</div>
+    <h2>Your cart is empty</h2>
+    <p>Looks like you haven't added anything yet.</p>
+    <a href="index.html" class="btn btn-primary">Start Shopping</a>
+  </div>
+
+  <!-- Cart content -->
+  <div id="cart-content" class="cart-layout hidden">
+
+    <!-- Left: items list -->
+    <div>
+      <div id="cart-items" class="cart-items"></div>
+
+      <button class="btn btn-danger mt-2" id="clear-cart-btn" style="font-size:0.85rem;">
+        🗑 Clear Cart
+      </button>
+    </div>
+
+    <!-- Right: order summary -->
+    <aside class="order-summary">
+      <h3>Order Summary</h3>
+
+      <div class="summary-row">
+        <span class="label">Subtotal</span>
+        <span class="value" id="subtotal">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">Shipping</span>
+        <span class="value" id="shipping-cost">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">Tax (10%)</span>
+        <span class="value" id="tax-amount">—</span>
+      </div>
+      <div class="summary-row total">
+        <span class="label">Total</span>
+        <span class="value" id="grand-total">—</span>
+      </div>
+
+      <a href="checkout.html" class="btn btn-primary btn-full btn-lg mt-3" id="checkout-btn">
+        Proceed to Checkout →
+      </a>
+
+      <p class="text-grey text-sm text-center mt-1">
+        🔒 Secured & encrypted checkout
+      </p>
+    </aside>
+  </div>
+
+</main>
+
+<footer class="footer"><p>© 2025 <strong>LUXE STORE</strong></p></footer>
+
+<script src="js/api.js"></script>
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  Cart page
+  // ─────────────────────────────────────────────────────────────
+
+  if (!requireAuth()) {
+    // requireAuth already redirects
+  }
+
+  let cartData = null;
+
+  async function loadCart() {
+    document.getElementById('loading').classList.remove('hidden');
+    document.getElementById('cart-content').classList.add('hidden');
+    document.getElementById('empty-cart').classList.add('hidden');
+
+    try {
+      cartData = await cartAPI.get();
+
+      document.getElementById('loading').classList.add('hidden');
+
+      if (!cartData.items.length) {
+        document.getElementById('empty-cart').classList.remove('hidden');
+        return;
+      }
+
+      const itemCount = cartData.items.reduce((s, i) => s + i.quantity, 0);
+      document.getElementById('cart-subtitle').textContent =
+        `You have ${itemCount} item${itemCount !== 1 ? 's' : ''} in your cart.`;
+
+      renderItems(cartData.items);
+      renderSummary(cartData.total);
+
+      document.getElementById('cart-content').classList.remove('hidden');
+    } catch (err) {
+      document.getElementById('loading').classList.add('hidden');
+      showToast('Failed to load cart: ' + err.message, 'error');
+    }
+  }
+
+  function renderItems(items) {
+    const container = document.getElementById('cart-items');
+    container.innerHTML = items.map(item => `
+      <div class="cart-item" id="cart-item-${item.id}">
+        <div class="cart-item-img">
+          <img src="${item.image_url || ''}" alt="${item.name}" />
+        </div>
+        <div class="cart-item-info">
+          <p class="cart-item-name">${item.name}</p>
+          <p class="cart-item-price">${formatPrice(item.price)} each</p>
+          <p class="text-grey text-sm">Subtotal: ${formatPrice(item.price * item.quantity)}</p>
+        </div>
+        <div class="cart-item-controls">
+          <div class="qty-control">
+            <button class="qty-btn" onclick="changeQty(${item.id}, ${item.quantity - 1})">−</button>
+            <span class="qty-value">${item.quantity}</span>
+            <button class="qty-btn" onclick="changeQty(${item.id}, ${item.quantity + 1})">+</button>
+          </div>
+          <button class="btn btn-danger" style="padding:0.35rem 0.75rem;font-size:0.8rem;"
+                  onclick="removeItem(${item.id})">Remove</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderSummary(subtotal) {
+    const shipping = subtotal >= 50 ? 0 : 4.99;
+    const tax      = subtotal * 0.10;
+    const total    = subtotal + shipping + tax;
+
+    document.getElementById('subtotal').textContent     = formatPrice(subtotal);
+    document.getElementById('shipping-cost').textContent = shipping === 0 ? 'FREE 🎉' : formatPrice(shipping);
+    document.getElementById('tax-amount').textContent   = formatPrice(tax);
+    document.getElementById('grand-total').textContent  = formatPrice(total);
+  }
+
+  async function changeQty(cartItemId, newQty) {
+    if (newQty < 1) { await removeItem(cartItemId); return; }
+    try {
+      await cartAPI.update(cartItemId, newQty);
+      await loadCart();
+      updateCartBadge();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function removeItem(cartItemId) {
+    try {
+      await cartAPI.remove(cartItemId);
+      showToast('Item removed', 'info');
+      await loadCart();
+      updateCartBadge();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  document.getElementById('clear-cart-btn').addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to clear your cart?')) return;
+    try {
+      await cartAPI.clear();
+      showToast('Cart cleared', 'info');
+      await loadCart();
+      updateCartBadge();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+
+  loadCart();
+</script>
+</body>
+</html>

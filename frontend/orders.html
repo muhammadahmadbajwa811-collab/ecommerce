@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Orders — LUXE STORE</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="index.html" class="nav-brand">LUXE<span>STORE</span></a>
+  <div class="nav-links">
+    <a href="index.html" class="nav-link">← Shop</a>
+    <a href="cart.html" class="nav-link cart-badge-wrap">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.99-1.8l1.38-9.2H6"/>
+      </svg>
+      Cart <span class="cart-badge hidden" id="cart-badge">0</span>
+    </a>
+    <div id="nav-auth" class="flex gap-1 items-center"></div>
+  </div>
+</nav>
+
+<main class="container">
+  <div class="page-header">
+    <h1>My Orders</h1>
+    <p>Track and review all your past purchases.</p>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" class="loading-state"><div class="spinner"></div></div>
+
+  <!-- Empty state -->
+  <div id="empty-orders" class="empty-state hidden">
+    <div class="empty-icon">📦</div>
+    <h2>No orders yet</h2>
+    <p>Once you place an order, it will appear here.</p>
+    <a href="index.html" class="btn btn-primary">Start Shopping</a>
+  </div>
+
+  <!-- Orders list -->
+  <div id="orders-list" class="orders-list hidden"></div>
+
+  <!-- Order detail modal overlay -->
+  <div id="modal-overlay" class="hidden" style="
+    position:fixed;inset:0;background:rgba(0,0,0,0.75);
+    z-index:2000;display:flex;align-items:center;justify-content:center;
+    padding:1rem;backdrop-filter:blur(4px);">
+    <div id="modal-box" style="
+      background:var(--bg2);border:1px solid var(--border);
+      border-radius:var(--radius-lg);max-width:600px;width:100%;
+      max-height:90vh;overflow-y:auto;padding:2rem;position:relative;">
+      <button onclick="closeModal()" style="
+        position:absolute;top:1rem;right:1rem;
+        background:var(--bg3);border:1px solid var(--border);
+        border-radius:50%;width:32px;height:32px;
+        color:var(--white);cursor:pointer;font-size:1.1rem;
+        display:flex;align-items:center;justify-content:center;">✕</button>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="footer"><p>© 2025 <strong>LUXE STORE</strong></p></footer>
+
+<script src="js/api.js"></script>
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  Orders page
+  // ─────────────────────────────────────────────────────────────
+  if (!requireAuth()) {}
+
+  async function loadOrders() {
+    try {
+      const orders = await orderAPI.list();
+      document.getElementById('loading').classList.add('hidden');
+
+      if (!orders.length) {
+        document.getElementById('empty-orders').classList.remove('hidden');
+        return;
+      }
+
+      const list = document.getElementById('orders-list');
+      list.innerHTML = orders.map(o => `
+        <div class="order-card" onclick="openOrder(${o.id})">
+          <div class="order-card-header">
+            <div>
+              <p class="order-id">Order ${o.id}</p>
+              <p class="order-date">${formatDate(o.created_at)}</p>
+            </div>
+            <span class="status-badge status-${o.status}">${o.status}</span>
+            <p class="order-total">${formatPrice(o.total)}</p>
+          </div>
+          <div class="order-card-body" style="flex-direction:row;align-items:center;justify-content:space-between;">
+            <p class="text-grey text-sm">${o.item_count} item${o.item_count !== 1 ? 's' : ''}</p>
+            <span style="color:var(--gold);font-size:0.85rem;">View details →</span>
+          </div>
+        </div>
+      `).join('');
+
+      list.classList.remove('hidden');
+    } catch (err) {
+      document.getElementById('loading').classList.add('hidden');
+      showToast('Failed to load orders: ' + err.message, 'error');
+    }
+  }
+
+  async function openOrder(id) {
+    document.getElementById('modal-content').innerHTML =
+      '<div class="loading-state"><div class="spinner"></div></div>';
+    document.getElementById('modal-overlay').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    try {
+      const order = await orderAPI.get(id);
+
+      const statusColors = {
+        pending: 'var(--gold)', processing: '#7ab4e8',
+        shipped: '#b47ae8', delivered: 'var(--success)', cancelled: 'var(--danger)'
+      };
+
+      document.getElementById('modal-content').innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap;">
+          <div>
+            <h2 style="font-family:var(--font-display);font-size:1.4rem;">Order #${order.id}</h2>
+            <p class="text-grey text-sm">${formatDate(order.created_at)}</p>
+          </div>
+          <span class="status-badge status-${order.status}">${order.status}</span>
+        </div>
+
+        <!-- Shipping info -->
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1.5rem;">
+          <p style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--grey);margin-bottom:0.5rem;">
+            📦 Shipping Address
+          </p>
+          <p style="font-weight:500;">${order.shipping_name}</p>
+          <p class="text-grey text-sm">${order.shipping_address}</p>
+          <p class="text-grey text-sm">${order.shipping_city}, ${order.shipping_zip}</p>
+        </div>
+
+        <!-- Items -->
+        <div style="margin-bottom:1.5rem;">
+          <p style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--grey);margin-bottom:0.75rem;">
+            🛍 Items Ordered
+          </p>
+          ${order.items.map(item => `
+            <div style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 0;border-bottom:1px solid var(--border);">
+              <img src="${item.image_url || ''}" alt="${item.name}"
+                   style="width:56px;height:56px;border-radius:6px;object-fit:cover;background:var(--bg3);" />
+              <div style="flex:1;min-width:0;">
+                <p style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</p>
+                <p class="text-grey text-sm">Qty: ${item.quantity} × ${formatPrice(item.price)}</p>
+              </div>
+              <p style="color:var(--gold);font-weight:600;">${formatPrice(item.price * item.quantity)}</p>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Totals -->
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;">
+          <div class="summary-row">
+            <span class="label">Subtotal</span>
+            <span>${formatPrice(order.total / 1.10 - (order.total / 1.10 >= 50 ? 0 : 4.99))}</span>
+          </div>
+          <div class="summary-row total" style="margin-top:0.5rem;padding-top:0.75rem;border-top:1px solid var(--border);">
+            <span class="label">Order Total</span>
+            <span class="value">${formatPrice(order.total)}</span>
+          </div>
+        </div>
+      `;
+    } catch (err) {
+      document.getElementById('modal-content').innerHTML =
+        `<p class="text-danger text-center">Failed to load order details.</p>`;
+    }
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  // Close modal on overlay click
+  document.getElementById('modal-overlay').addEventListener('click', function (e) {
+    if (e.target === this) closeModal();
+  });
+
+  // Close on Escape
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  loadOrders();
+</script>
+</body>
+</html>

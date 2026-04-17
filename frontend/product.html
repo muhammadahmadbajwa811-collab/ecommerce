@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product — LUXE STORE</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="index.html" class="nav-brand">LUXE<span>STORE</span></a>
+  <div class="nav-links">
+    <a href="index.html" class="nav-link">← Back to Shop</a>
+    <a href="cart.html" class="nav-link cart-badge-wrap">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.99-1.8l1.38-9.2H6"/>
+      </svg>
+      Cart <span class="cart-badge hidden" id="cart-badge">0</span>
+    </a>
+    <div id="nav-auth" class="flex gap-1 items-center"></div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="container">
+
+  <!-- Breadcrumb -->
+  <div style="padding:1.25rem 0;font-size:0.85rem;color:var(--grey);">
+    <a href="index.html">Shop</a>
+    <span style="margin:0 0.5rem;">›</span>
+    <span id="bc-category">…</span>
+    <span style="margin:0 0.5rem;">›</span>
+    <span id="bc-name">…</span>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" class="loading-state"><div class="spinner"></div></div>
+
+  <!-- Product detail -->
+  <div id="product-detail" class="product-detail hidden">
+
+    <!-- Image -->
+    <div class="product-detail-img">
+      <img id="product-image" src="" alt="" />
+    </div>
+
+    <!-- Info -->
+    <div class="product-detail-info">
+      <span class="detail-category" id="product-category"></span>
+      <h1 class="detail-name"  id="product-name"></h1>
+      <p  class="detail-price" id="product-price"></p>
+      <div id="product-stock-label"></div>
+
+      <div class="detail-badges">
+        <span class="badge">🚚 Free shipping over $50</span>
+        <span class="badge">↩️ 30-day returns</span>
+        <span class="badge">🔒 Secure checkout</span>
+      </div>
+
+      <p class="detail-desc" id="product-desc"></p>
+
+      <!-- Quantity selector -->
+      <div>
+        <label class="text-sm" style="color:var(--grey-light);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;display:block;margin-bottom:0.5rem;">
+          Quantity
+        </label>
+        <div class="qty-control">
+          <button class="qty-btn" id="qty-dec">−</button>
+          <span class="qty-value" id="qty-value">1</span>
+          <button class="qty-btn" id="qty-inc">+</button>
+        </div>
+      </div>
+
+      <!-- Add to cart -->
+      <button class="btn btn-primary btn-lg btn-full" id="add-to-cart-btn">
+        🛒 Add to Cart
+      </button>
+
+      <a href="cart.html" class="btn btn-ghost btn-full">View Cart</a>
+    </div>
+  </div>
+
+  <!-- Not found -->
+  <div id="not-found" class="empty-state hidden">
+    <div class="empty-icon">😕</div>
+    <h2>Product not found</h2>
+    <p>It may have been removed or the link is wrong.</p>
+    <a href="index.html" class="btn btn-primary">Back to Shop</a>
+  </div>
+
+</main>
+
+<footer class="footer">
+  <p>© 2025 <strong>LUXE STORE</strong></p>
+</footer>
+
+<script src="js/api.js"></script>
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  Product detail page
+  // ─────────────────────────────────────────────────────────────
+
+  let product = null;
+  let qty     = 1;
+
+  // ── Quantity controls ────────────────────────────────────────
+  document.getElementById('qty-dec').addEventListener('click', () => {
+    if (qty > 1) { qty--; document.getElementById('qty-value').textContent = qty; }
+  });
+  document.getElementById('qty-inc').addEventListener('click', () => {
+    if (!product) return;
+    if (qty < product.stock) { qty++; document.getElementById('qty-value').textContent = qty; }
+    else showToast('Max stock reached', 'info');
+  });
+
+  // ── Add to cart ──────────────────────────────────────────────
+  document.getElementById('add-to-cart-btn').addEventListener('click', async () => {
+    if (!isLoggedIn()) { window.location.href = 'login.html'; return; }
+    if (!product || product.stock === 0) { showToast('Out of stock', 'error'); return; }
+    try {
+      await cartAPI.add(product.id, qty);
+      showToast(`Added ${qty}× "${product.name}" to cart 🛒`, 'success');
+      updateCartBadge();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+
+  // ── Load product ─────────────────────────────────────────────
+  async function loadProduct() {
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (!id) { showError(); return; }
+
+    try {
+      product = await productAPI.get(id);
+      document.title = `${product.name} — LUXE STORE`;
+
+      // Breadcrumbs
+      document.getElementById('bc-category').textContent = product.category_name || 'General';
+      document.getElementById('bc-name').textContent = product.name;
+
+      // Fill in data
+      document.getElementById('product-image').src = product.image_url || '';
+      document.getElementById('product-image').alt = product.name;
+      document.getElementById('product-category').textContent = product.category_name || 'General';
+      document.getElementById('product-name').textContent = product.name;
+      document.getElementById('product-price').textContent = formatPrice(product.price);
+      document.getElementById('product-desc').textContent = product.description || 'No description available.';
+      document.getElementById('product-stock-label').innerHTML = stockLabel(product.stock);
+
+      if (product.stock === 0) {
+        document.getElementById('add-to-cart-btn').disabled = true;
+        document.getElementById('add-to-cart-btn').textContent = 'Out of Stock';
+      }
+
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('product-detail').classList.remove('hidden');
+    } catch {
+      showError();
+    }
+  }
+
+  function showError() {
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('not-found').classList.remove('hidden');
+  }
+
+  loadProduct();
+</script>
+</body>
+</html>

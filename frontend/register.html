@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign Up — LUXE STORE</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-brand">LUXE<span>STORE</span></a>
+</nav>
+
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="logo">LUXE STORE</div>
+    <p class="sub">Create your account — it's free!</p>
+
+    <div id="error-msg" class="hidden"
+         style="background:rgba(224,82,82,0.1);border:1px solid rgba(224,82,82,0.3);border-radius:8px;
+                padding:0.75rem 1rem;font-size:0.875rem;color:var(--danger);margin-bottom:1rem;"></div>
+
+    <div class="form-group">
+      <label for="name">Full Name</label>
+      <input type="text" id="name" class="form-input" placeholder="John Doe" autocomplete="name" />
+      <span class="form-error hidden" id="err-name">Name is required.</span>
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <input type="email" id="email" class="form-input" placeholder="you@example.com" autocomplete="email" />
+      <span class="form-error hidden" id="err-email">Valid email required.</span>
+    </div>
+
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" class="form-input" placeholder="Min. 6 characters" autocomplete="new-password" />
+      <span class="form-error hidden" id="err-pass">At least 6 characters.</span>
+    </div>
+
+    <div class="form-group">
+      <label for="confirm">Confirm Password</label>
+      <input type="password" id="confirm" class="form-input" placeholder="••••••••" autocomplete="new-password" />
+      <span class="form-error hidden" id="err-confirm">Passwords do not match.</span>
+    </div>
+
+    <button class="btn btn-primary btn-full btn-lg mt-2" id="register-btn">
+      Create Account
+    </button>
+
+    <div class="auth-divider">or</div>
+
+    <p class="text-center text-sm" style="color:var(--grey-light);">
+      Already have an account?
+      <a href="login.html">Sign in →</a>
+    </p>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+  if (isLoggedIn()) window.location.href = 'index.html';
+
+  const btn   = document.getElementById('register-btn');
+  const errEl = document.getElementById('error-msg');
+
+  function showError(msg) { errEl.textContent = msg; errEl.classList.remove('hidden'); }
+  function hideError()     { errEl.classList.add('hidden'); }
+  function fieldErr(id, show) { document.getElementById(id).classList.toggle('hidden', !show); }
+
+  btn.addEventListener('click', doRegister);
+  document.getElementById('confirm').addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+
+  async function doRegister() {
+    hideError();
+    const name     = document.getElementById('name').value.trim();
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const confirm  = document.getElementById('confirm').value;
+
+    let valid = true;
+    if (!name)                    { fieldErr('err-name', true);    valid = false; } else fieldErr('err-name', false);
+    if (!email || !email.includes('@')) { fieldErr('err-email', true); valid = false; } else fieldErr('err-email', false);
+    if (password.length < 6)      { fieldErr('err-pass', true);    valid = false; } else fieldErr('err-pass', false);
+    if (password !== confirm)     { fieldErr('err-confirm', true); valid = false; } else fieldErr('err-confirm', false);
+    if (!valid) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Creating account…';
+
+    try {
+      const data = await authAPI.register(name, email, password);
+      saveAuth(data.token, data.user);
+      showToast('Account created! Welcome, ' + data.user.name + ' 🎉', 'success');
+      setTimeout(() => window.location.href = 'index.html', 700);
+    } catch (err) {
+      showError(err.message);
+      btn.disabled = false;
+      btn.textContent = 'Create Account';
+    }
+  }
+</script>
+</body>
+</html>
