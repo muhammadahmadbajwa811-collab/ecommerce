@@ -1,7 +1,7 @@
 // js/api.js — shared helpers used by every page
 // ─────────────────────────────────────────────────────────────
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://ecommerce-backend-62s2.onrender.com/api';
 
 // ── Token helpers ─────────────────────────────────────────────
 const getToken  = ()        => localStorage.getItem('token');
