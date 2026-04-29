@@ -13,11 +13,11 @@ const app = express();
 // CORS: allow the frontend (running on a different port) to talk to us
 app.use(cors({
   origin: [
-    process.env.CLIENT_URL || 'http://127.0.0.1:5500',
-    'http://localhost:5500',
-    'http://127.0.0.1:5500',
+    'https://fanciful-crostata-aca859.netlify.app', // Your live Netlify frontend
+    'http://localhost:3000', // Keeps your local development working
+    'http://localhost:5173'  // (Add this if you use Vite locally)
   ],
-  credentials: true,
+  credentials: true
 }));
 
 // Parse incoming JSON bodies
