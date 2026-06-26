@@ -276,11 +276,9 @@ Pull requests are welcome! For major changes, please open an issue first to disc
 ## 👨‍💻 Author
 
 **Muhammad Ahmad Bajwa**  
-CS Student @ UET Lahore | CodeAlpha Intern  
+CS Student @ UET Lahore 
 [GitHub](https://github.com/muhammadahmadbajwa811-collab)
 
 ---
 
-## 📄 License
 
-This project is licensed under the [MIT License](LICENSE).
